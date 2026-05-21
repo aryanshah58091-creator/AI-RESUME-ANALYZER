@@ -1,0 +1,59 @@
+﻿{
+    "status": "OK",
+    "message": "System diagnostics",
+    "timestamp": "2026-01-27 23:53:50",
+    "os": "WINNT",
+    "checks": {
+        "PHP Version": {
+            "status": true,
+            "value": "8.1.25",
+            "required": "7.4.0+"
+        },
+        "PDO Extension": {
+            "status": true,
+            "value": "Installed",
+            "required": "Required"
+        },
+        "PDO MySQL Extension": {
+            "status": true,
+            "value": "Installed",
+            "required": "Required"
+        },
+        "cURL Extension": {
+            "status": true,
+            "value": "Installed",
+            "required": "Required for OpenAI"
+        },
+        "ZIP Extension": {
+            "status": true,
+            "value": "Installed",
+            "required": "Required for DOCX parsing"
+        },
+        "DOM Extension": {
+            "status": true,
+            "value": "Installed",
+            "required": "Required for DOCX parsing"
+        },
+        "OpenAI API Key": {
+            "status": false,
+            "value": "Not configured (using demo mode)",
+            "required": "Optional (demo mode available)"
+        },
+        "Upload Directory": {
+            "status": true,
+            "value": "Writable",
+            "required": "Must be writable"
+        },
+        "pdftotext Command": {
+            "status": false,
+            "value": "Not available (using PHP fallback)",
+            "required": "Optional (PHP fallback available)"
+        },
+        "Database Connection": {
+            "status": false,
+            "value": "Failed (running in demo mode)",
+            "required": "Optional (demo mode available)"
+        }
+    },
+    "allPassed": true
+}
