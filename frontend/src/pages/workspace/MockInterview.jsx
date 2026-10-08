@@ -25,7 +25,13 @@ import {
   Zap,
   Check,
   ShieldCheck,
-  Play
+  Play,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Trash2,
+  Radio
 } from 'lucide-react';
 
 const DEFAULT_QUESTIONS = [
@@ -91,13 +97,118 @@ export default function MockInterview() {
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [targetRole, setTargetRole] = useState('Full Stack / SDE-1 Engineer');
 
+  // Voice Speech-to-Text & Text-to-Speech State
+  const [isRecording, setIsRecording] = useState(false);
+  const [speechError, setSpeechError] = useState('');
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const recognitionRef = React.useRef(null);
+
   const currentQ = questions[selectedQuestionIndex] || questions[0];
   const currentEval = evaluations[currentQ.id];
+
+  // Initialize Web SpeechRecognition & cleanup
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript + ' ';
+        }
+        if (transcript.trim()) {
+          setCandidateAnswer(transcript.trim());
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition event error:', event.error);
+        if (event.error === 'not-allowed') {
+          setSpeechError('Microphone access blocked. Please enable mic permissions in your browser address bar.');
+        } else if (event.error !== 'no-speech') {
+          setSpeechError(`Voice capture notice: ${event.error}`);
+        }
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (e) {}
+      }
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const toggleVoiceRecording = () => {
+    setSpeechError('');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechError('Live Voice Speech-to-Text is supported in Google Chrome, Microsoft Edge, and modern browsers.');
+      return;
+    }
+
+    if (isRecording) {
+      try {
+        recognitionRef.current?.stop();
+      } catch (e) {}
+      setIsRecording(false);
+    } else {
+      try {
+        recognitionRef.current?.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.warn('Error starting speech recognition:', err);
+        setIsRecording(false);
+      }
+    }
+  };
+
+  const togglePlayQuestionAudio = () => {
+    if (!window.speechSynthesis) {
+      alert('Text-to-speech audio is not supported in this browser.');
+      return;
+    }
+
+    if (isPlayingAudio) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+    } else {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(currentQ.question);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+      utterance.onend = () => setIsPlayingAudio(false);
+      utterance.onerror = () => setIsPlayingAudio(false);
+      setIsPlayingAudio(true);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   // Load question text when index changes
   useEffect(() => {
     // If we have an existing answer for this question, keep it, else clear or load sample
     setCandidateAnswer(evaluations[currentQ.id]?.userAnswer || '');
+    if (isRecording) {
+      try { recognitionRef.current?.stop(); } catch (e) {}
+      setIsRecording(false);
+    }
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+    }
   }, [selectedQuestionIndex]);
 
   const handleGenerateQuestions = async () => {
@@ -330,14 +441,33 @@ export default function MockInterview() {
           <Card className="border-dark-600 bg-dark-800/90 p-5 shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-brand-teal/5 rounded-full blur-2xl pointer-events-none"></div>
 
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <span className="text-xs font-mono font-bold text-brand-teal uppercase tracking-wider flex items-center gap-1.5">
                 <Code2 className="w-3.5 h-3.5" />
                 Question #{selectedQuestionIndex + 1} &bull; {currentQ.type}
               </span>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-dark-700 text-slate-300 border border-dark-600">
-                Difficulty: {currentQ.difficulty}
-              </span>
+
+              <div className="flex items-center gap-2">
+                {/* Text-to-speech listen button */}
+                <button
+                  type="button"
+                  onClick={togglePlayQuestionAudio}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all flex items-center gap-1.5 shadow-sm",
+                    isPlayingAudio
+                      ? "bg-brand-teal text-dark-900 font-bold animate-pulse"
+                      : "bg-dark-700 hover:bg-dark-600 text-brand-teal border border-dark-600"
+                  )}
+                  title="Listen to interviewer question read aloud"
+                >
+                  {isPlayingAudio ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                  <span>{isPlayingAudio ? 'Stop Reading' : 'Listen to Question'}</span>
+                </button>
+
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-dark-700 text-slate-300 border border-dark-600">
+                  Difficulty: {currentQ.difficulty}
+                </span>
+              </div>
             </div>
 
             <h2 className="text-base font-bold text-white leading-snug mb-3">
@@ -359,27 +489,81 @@ export default function MockInterview() {
 
           {/* Candidate Answer Studio */}
           <Card className="border-dark-600 bg-dark-800/90 p-4 shadow-lg flex flex-col gap-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-xs font-mono font-bold text-slate-300 flex items-center gap-1.5">
                 <Terminal className="w-3.5 h-3.5 text-brand-purple" />
                 Your Technical Response (Voice / Text)
               </span>
-              <button
-                type="button"
-                onClick={handleLoadSample}
-                className="text-[11px] font-mono text-brand-teal hover:underline flex items-center gap-1"
-              >
-                <Sparkles className="w-3 h-3" />
-                Load Benchmark Answer (Demo)
-              </button>
+
+              <div className="flex items-center gap-2">
+                {/* Voice Record Toggle Button */}
+                <button
+                  type="button"
+                  onClick={toggleVoiceRecording}
+                  className={cn(
+                    "px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 shadow-sm",
+                    isRecording
+                      ? "bg-red-500 text-white animate-pulse"
+                      : "bg-dark-700 hover:bg-dark-600 text-slate-200 border border-dark-600 hover:text-white"
+                  )}
+                  title="Record your answer using voice microphone"
+                >
+                  {isRecording ? <MicOff className="w-3.5 h-3.5 text-white" /> : <Mic className="w-3.5 h-3.5 text-brand-teal" />}
+                  <span>{isRecording ? 'Stop Recording' : 'Speak Answer (Mic)'}</span>
+                </button>
+
+                {/* Clear Answer Button */}
+                {candidateAnswer && (
+                  <button
+                    type="button"
+                    onClick={() => setCandidateAnswer('')}
+                    className="p-1 rounded-lg text-slate-500 hover:text-red-400 hover:bg-dark-700 transition-colors"
+                    title="Clear response"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleLoadSample}
+                  className="text-[11px] font-mono text-brand-teal hover:underline flex items-center gap-1"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Benchmark (Demo)
+                </button>
+              </div>
             </div>
+
+            {/* Live Voice Recording Status & Audio Wave */}
+            {isRecording && (
+              <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                  <span className="font-bold">Live Voice Recording... Speak your technical response</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-1 h-3 bg-red-400 rounded-full animate-bounce"></span>
+                  <span className="w-1 h-5 bg-red-400 rounded-full animate-bounce delay-75"></span>
+                  <span className="w-1 h-2 bg-red-400 rounded-full animate-bounce delay-150"></span>
+                  <span className="w-1 h-4 bg-red-400 rounded-full animate-bounce delay-100"></span>
+                </div>
+              </div>
+            )}
+
+            {speechError && (
+              <div className="px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{speechError}</span>
+              </div>
+            )}
 
             <form onSubmit={handleEvaluateSubmit} className="flex flex-col gap-3">
               <textarea
                 value={candidateAnswer}
                 onChange={(e) => setCandidateAnswer(e.target.value)}
                 rows={5}
-                placeholder="Structure your answer technically: explain architectural decisions, handle trade-offs, and mention metrics..."
+                placeholder="Structure your answer technically or speak into your microphone: explain architectural decisions, handle trade-offs, and mention metrics..."
                 className="w-full bg-dark-900 border border-dark-600 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-brand-teal font-mono custom-scrollbar resize-none leading-relaxed"
               />
 
