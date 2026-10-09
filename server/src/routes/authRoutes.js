@@ -109,7 +109,8 @@ router.post('/login', async (req, res) => {
     );
 
     const currentCredits = user.ai_credits !== undefined && user.ai_credits !== null ? Number(user.ai_credits) : 100;
-    console.log(`✅ Successful login: ${user.email} (ID: ${user.id}, Credits: ${currentCredits})`);
+    const sandboxClaimed = Boolean(user.sandbox_claimed);
+    console.log(`✅ Successful login: ${user.email} (ID: ${user.id}, Credits: ${currentCredits}, Sandbox Claimed: ${sandboxClaimed})`);
 
     res.json({
       _id: user.id,
@@ -117,6 +118,7 @@ router.post('/login', async (req, res) => {
       email: user.email,
       role: user.role || 'user',
       ai_credits: currentCredits,
+      sandbox_claimed: sandboxClaimed,
       token,
     });
   } catch (error) {
@@ -128,7 +130,7 @@ router.post('/login', async (req, res) => {
 // Get current user profile and credit balance
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT id, name, email, role, ai_credits FROM users WHERE id = ?', [req.user.id]);
+    const [rows] = await pool.query('SELECT id, name, email, role, ai_credits, sandbox_claimed FROM users WHERE id = ?', [req.user.id]);
     if (rows.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -136,30 +138,62 @@ router.get('/me', authenticate, async (req, res) => {
     res.json({
       ...u,
       ai_credits: u.ai_credits !== undefined && u.ai_credits !== null ? Number(u.ai_credits) : 100,
+      sandbox_claimed: Boolean(u.sandbox_claimed),
     });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch user' });
   }
 });
 
-// Refill AI Credits (Commercial SaaS purchase / Demo Refill)
+// Refill AI Credits (1-Time Sandbox Refill or Simulated Purchase)
 router.post('/credits/refill', authenticate, async (req, res) => {
   try {
     const userId = req.user?.id || 1;
     const amount = Number(req.body?.amount) || 50;
+    const isSandbox = req.body?.is_sandbox === true || (!req.body?.is_purchase && amount === 50);
 
+    const [uRows] = await pool.query('SELECT ai_credits, sandbox_claimed FROM users WHERE id = ?', [userId]);
+    const userRow = uRows[0] || {};
+
+    if (isSandbox) {
+      if (userRow.sandbox_claimed === 1 || userRow.sandbox_claimed === true) {
+        return res.status(403).json({
+          success: false,
+          alreadyClaimed: true,
+          message: 'Free Sandbox Refill (+50) has already been claimed for this account. Only 1 trial refill is allowed per user.',
+          ai_credits: Number(userRow.ai_credits) || 100,
+          sandbox_claimed: true,
+        });
+      }
+
+      await pool.query(
+        'UPDATE users SET ai_credits = COALESCE(ai_credits, 100) + 50, sandbox_claimed = 1 WHERE id = ?',
+        [userId]
+      );
+
+      const [resRows] = await pool.query('SELECT ai_credits, sandbox_claimed FROM users WHERE id = ?', [userId]);
+      return res.json({
+        success: true,
+        message: '🎉 Claimed 1-time Free Sandbox Refill (+50 Credits)!',
+        ai_credits: Number(resRows[0].ai_credits),
+        sandbox_claimed: true,
+      });
+    }
+
+    // Simulated / Commercial purchase
     await pool.query(
       'UPDATE users SET ai_credits = COALESCE(ai_credits, 100) + ? WHERE id = ?',
       [amount, userId]
     );
 
-    const [rows] = await pool.query('SELECT ai_credits FROM users WHERE id = ?', [userId]);
-    const updatedCredits = rows[0]?.ai_credits !== undefined ? Number(rows[0].ai_credits) : 150;
+    const [rows] = await pool.query('SELECT ai_credits, sandbox_claimed FROM users WHERE id = ?', [userId]);
+    const updatedCredits = rows[0]?.ai_credits !== undefined ? Number(rows[0].ai_credits) : 100;
 
     res.json({
       success: true,
-      message: `Successfully added ${amount} AI Credits!`,
+      message: `🎉 Payment Confirmed: Successfully added ${amount} AI Credits!`,
       ai_credits: updatedCredits,
+      sandbox_claimed: Boolean(rows[0]?.sandbox_claimed),
     });
   } catch (error) {
     console.error('Refill credits error:', error);

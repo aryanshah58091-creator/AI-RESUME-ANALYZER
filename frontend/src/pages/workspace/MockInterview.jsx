@@ -31,8 +31,11 @@ import {
   Volume2,
   VolumeX,
   Trash2,
-  Radio
+  Radio,
+  Coins
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import CreditsModal from '../../components/workspace/CreditsModal';
 
 const DEFAULT_QUESTIONS = [
   {
@@ -88,6 +91,7 @@ const SAMPLE_ANSWERS = {
 export default function MockInterview() {
   const navigate = useNavigate();
   const { activeResume } = useWorkspace();
+  const { aiCredits, deductCredits, setAiCredits } = useAuth();
 
   const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(0);
@@ -96,6 +100,7 @@ export default function MockInterview() {
   const [evaluations, setEvaluations] = useState({});
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [targetRole, setTargetRole] = useState('Full Stack / SDE-1 Engineer');
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
 
   // Voice Speech-to-Text & Text-to-Speech State
   const [isRecording, setIsRecording] = useState(false);
@@ -240,6 +245,12 @@ export default function MockInterview() {
     e.preventDefault();
     if (!candidateAnswer.trim()) return;
 
+    if (aiCredits < 10) {
+      setSpeechError('Insufficient AI credits (10 credits required per AI evaluation). Please refill credits.');
+      setShowCreditsModal(true);
+      return;
+    }
+
     setEvaluating(true);
     try {
       const res = await axios.post('/interview/evaluate', {
@@ -247,6 +258,12 @@ export default function MockInterview() {
         answer: candidateAnswer,
         keyTopics: currentQ.keyTopics || [],
       });
+
+      if (res.data?.ai_credits !== undefined) {
+        setAiCredits(Number(res.data.ai_credits));
+      } else {
+        deductCredits(10);
+      }
 
       let newEval = null;
       if (res.data?.evaluation) {
@@ -296,6 +313,7 @@ export default function MockInterview() {
       });
     } catch (err) {
       console.warn('Evaluation fallback:', err.message);
+      deductCredits(10);
       const words = candidateAnswer.split(/\s+/).length;
       const score = words > 60 ? 9 : words > 30 ? 7 : 5;
       const fallbackEval = {
@@ -744,6 +762,11 @@ export default function MockInterview() {
 
         </div>
       </div>
+
+      <CreditsModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+      />
     </div>
   );
 }

@@ -40,11 +40,37 @@ router.post('/evaluate', authenticate, async (req, res) => {
       });
     }
 
+    const userId = req.user?.id || 1;
+    let remainingCredits = null;
+
+    // Check and deduct AI credits (10 credits per AI evaluation)
+    try {
+      const [uRows] = await pool.query('SELECT ai_credits FROM users WHERE id = ?', [userId]);
+      const currentCredits = uRows[0]?.ai_credits !== undefined && uRows[0]?.ai_credits !== null
+        ? Number(uRows[0].ai_credits)
+        : 100;
+
+      if (currentCredits < 10) {
+        return res.status(402).json({
+          success: false,
+          outOfCredits: true,
+          message: 'Insufficient AI credits (10 credits required for AI interview evaluation). Please refill your credits.',
+          ai_credits: currentCredits,
+        });
+      }
+
+      await pool.query('UPDATE users SET ai_credits = GREATEST(0, ai_credits - 10) WHERE id = ?', [userId]);
+      remainingCredits = Math.max(0, currentCredits - 10);
+    } catch (creditErr) {
+      console.warn('Credits balance check warning in interview (proceeding):', creditErr.message);
+    }
+
     const evaluation = await evaluateAnswer(question, answer, keyTopics || []);
 
     res.json({
       success: true,
       evaluation,
+      ai_credits: remainingCredits !== null ? remainingCredits : undefined,
     });
   } catch (error) {
     console.error('Evaluate answer error:', error);

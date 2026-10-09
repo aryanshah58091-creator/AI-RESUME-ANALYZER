@@ -26,6 +26,18 @@ export const AuthProvider = ({ children }) => {
         const cached = localStorage.getItem('ai_credits');
         return cached ? Number(cached) : 100;
     });
+    const [sandboxClaimed, setSandboxClaimed] = useState(() => {
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            try {
+                const parsed = JSON.parse(savedUser);
+                if (parsed.sandbox_claimed !== undefined) {
+                    return Boolean(parsed.sandbox_claimed);
+                }
+            } catch (e) {}
+        }
+        return localStorage.getItem('sandbox_claimed') === 'true';
+    });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -40,6 +52,9 @@ export const AuthProvider = ({ children }) => {
                 if (parsed.ai_credits !== undefined && parsed.ai_credits !== null) {
                     setAiCredits(Number(parsed.ai_credits));
                 }
+                if (parsed.sandbox_claimed !== undefined) {
+                    setSandboxClaimed(Boolean(parsed.sandbox_claimed));
+                }
             } catch (e) {}
         }
 
@@ -53,6 +68,11 @@ export const AuthProvider = ({ children }) => {
                             const val = Number(res.data.ai_credits);
                             setAiCredits(val);
                             localStorage.setItem('ai_credits', String(val));
+                        }
+                        if (res.data.sandbox_claimed !== undefined) {
+                            const claimed = Boolean(res.data.sandbox_claimed);
+                            setSandboxClaimed(claimed);
+                            localStorage.setItem('sandbox_claimed', String(claimed));
                         }
                     }
                 })
@@ -75,6 +95,10 @@ export const AuthProvider = ({ children }) => {
         setAiCredits(credits);
         localStorage.setItem('ai_credits', String(credits));
 
+        const claimed = Boolean(userData.sandbox_claimed);
+        setSandboxClaimed(claimed);
+        localStorage.setItem('sandbox_claimed', String(claimed));
+
         return response.data;
     };
 
@@ -89,6 +113,9 @@ export const AuthProvider = ({ children }) => {
         setAiCredits(credits);
         localStorage.setItem('ai_credits', String(credits));
 
+        setSandboxClaimed(false);
+        localStorage.setItem('sandbox_claimed', 'false');
+
         return response.data;
     };
 
@@ -96,8 +123,10 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('ai_credits');
+        localStorage.removeItem('sandbox_claimed');
         setUser(null);
         setAiCredits(100);
+        setSandboxClaimed(false);
     };
 
     const deductCredits = (amount = 10) => {
@@ -108,22 +137,63 @@ export const AuthProvider = ({ children }) => {
         });
     };
 
-    const refillCredits = async (amount = 50) => {
+    const refillCredits = async (amount = 50, options = {}) => {
         try {
-            const response = await axios.post('/auth/credits/refill', { amount });
+            const payload = {
+                amount,
+                is_sandbox: options.is_sandbox === true,
+                is_purchase: options.is_purchase === true,
+            };
+            const response = await axios.post('/auth/credits/refill', payload);
             const nextCredits = response.data?.ai_credits !== undefined
                 ? Number(response.data.ai_credits)
                 : aiCredits + amount;
             setAiCredits(nextCredits);
             localStorage.setItem('ai_credits', String(nextCredits));
-            setUser(prev => prev ? { ...prev, ai_credits: nextCredits } : prev);
-            return { success: true, ai_credits: nextCredits };
+
+            if (response.data?.sandbox_claimed !== undefined) {
+                const claimed = Boolean(response.data.sandbox_claimed);
+                setSandboxClaimed(claimed);
+                localStorage.setItem('sandbox_claimed', String(claimed));
+            } else if (options.is_sandbox) {
+                setSandboxClaimed(true);
+                localStorage.setItem('sandbox_claimed', 'true');
+            }
+
+            setUser(prev => prev ? {
+                ...prev,
+                ai_credits: nextCredits,
+                sandbox_claimed: response.data?.sandbox_claimed !== undefined ? Boolean(response.data.sandbox_claimed) : prev.sandbox_claimed
+            } : prev);
+
+            return {
+                success: true,
+                ai_credits: nextCredits,
+                message: response.data?.message || 'Credits successfully added!'
+            };
         } catch (error) {
-            console.warn('Backend refill error, applying resilient local refill:', error.message);
-            const nextCredits = aiCredits + amount;
-            setAiCredits(nextCredits);
-            localStorage.setItem('ai_credits', String(nextCredits));
-            return { success: true, ai_credits: nextCredits };
+            if (error.response?.data?.alreadyClaimed || error.response?.status === 403) {
+                setSandboxClaimed(true);
+                localStorage.setItem('sandbox_claimed', 'true');
+                return {
+                    success: false,
+                    alreadyClaimed: true,
+                    message: error.response?.data?.message || 'Free Sandbox Refill (+50) has already been claimed for this account.',
+                    ai_credits: aiCredits,
+                };
+            }
+            console.warn('Backend refill error:', error.message);
+            // Simulated purchase fallback if server is unreachable
+            if (options.is_purchase) {
+                const nextCredits = aiCredits + amount;
+                setAiCredits(nextCredits);
+                localStorage.setItem('ai_credits', String(nextCredits));
+                return { success: true, ai_credits: nextCredits, message: `🎉 Payment Confirmed: Added ${amount} Credits!` };
+            }
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to refill credits.'
+            };
         }
     };
 
@@ -131,6 +201,8 @@ export const AuthProvider = ({ children }) => {
         user,
         aiCredits,
         setAiCredits,
+        sandboxClaimed,
+        setSandboxClaimed,
         deductCredits,
         refillCredits,
         login,

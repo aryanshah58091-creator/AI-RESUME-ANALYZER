@@ -1,15 +1,33 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useAuth } from '../../context/AuthContext';
+import CreditsModal from '../../components/workspace/CreditsModal';
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { StatCircle } from '../../components/ui/StatCircle';
-import { CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Wand2, Sparkles, Check, Briefcase } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Wand2, Sparkles, Check, Briefcase, Coins } from 'lucide-react';
 
 export default function SmartRewriter() {
   const navigate = useNavigate();
   const { activeResume } = useWorkspace();
+  const { aiCredits, deductCredits } = useAuth();
   const [appliedAll, setAppliedAll] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [creditNotice, setCreditNotice] = useState('');
+
+  const handleApplyAll = () => {
+    if (appliedAll) return;
+    if (aiCredits < 10) {
+      setCreditNotice('Insufficient AI credits (10 credits required to apply Smart Rewriter bullets). Please refill.');
+      setShowCreditsModal(true);
+      return;
+    }
+    deductCredits(10);
+    setAppliedAll(true);
+    setCreditNotice('🎉 3 Executive Bullets Applied to Profile! (10 Credits deducted)');
+    setTimeout(() => setCreditNotice(''), 5000);
+  };
 
   return (
     <div className="flex flex-col gap-6 h-full w-full max-w-7xl mx-auto py-2">
@@ -41,11 +59,11 @@ export default function SmartRewriter() {
               <div className="text-[10px] text-slate-500">Projected ATS Increase</div>
             </div>
             <button
-              onClick={() => setAppliedAll(true)}
+              onClick={handleApplyAll}
               className="bg-brand-purple text-white px-3 py-2 rounded-lg font-bold text-xs hover:bg-purple-500 transition-colors shadow-md flex items-center gap-1.5"
             >
               {appliedAll ? <Check className="w-3.5 h-3.5" /> : <Wand2 className="w-3.5 h-3.5" />}
-              {appliedAll ? 'Applied to Resume' : 'Apply All (3/3)'}
+              {appliedAll ? 'Applied to Resume' : 'Apply All (3/3) &bull; 10 Cr'}
             </button>
           </div>
           <button
@@ -57,6 +75,13 @@ export default function SmartRewriter() {
           </button>
         </div>
       </div>
+
+      {creditNotice && (
+        <div className="p-3 rounded-xl bg-brand-green/10 border border-brand-green/30 text-brand-green text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{creditNotice}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -257,6 +282,11 @@ export default function SmartRewriter() {
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
+
+      <CreditsModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+      />
     </div>
   );
 }

@@ -46,6 +46,13 @@ export async function initDatabase() {
       // Column likely already exists
     }
 
+    // Ensure sandbox_claimed column exists
+    try {
+      await connection.query(`ALTER TABLE users ADD COLUMN sandbox_claimed TINYINT DEFAULT 0`);
+    } catch (e) {
+      // Column likely already exists
+    }
+
     // Create resumes table if not exists
     await connection.query(`
       CREATE TABLE IF NOT EXISTS resumes (
