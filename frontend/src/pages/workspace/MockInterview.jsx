@@ -248,23 +248,16 @@ export default function MockInterview() {
         keyTopics: currentQ.keyTopics || [],
       });
 
+      let newEval = null;
       if (res.data?.evaluation) {
-        setEvaluations((prev) => ({
-          ...prev,
-          [currentQ.id]: {
-            ...res.data.evaluation,
-            userAnswer: candidateAnswer,
-          },
-        }));
-      }
-    } catch (err) {
-      console.warn('Evaluation fallback:', err.message);
-      // Resilient fallback evaluation
-      const words = candidateAnswer.split(/\s+/).length;
-      const score = words > 60 ? 9 : words > 30 ? 7 : 5;
-      setEvaluations((prev) => ({
-        ...prev,
-        [currentQ.id]: {
+        newEval = {
+          ...res.data.evaluation,
+          userAnswer: candidateAnswer,
+        };
+      } else {
+        const words = candidateAnswer.split(/\s+/).length;
+        const score = words > 60 ? 9 : words > 30 ? 7 : 5;
+        newEval = {
           score,
           conceptCoverage: Math.min(95, score * 10 + 5),
           communicationClarity: score >= 8 ? 'Structured & Technical' : 'Good Baseline',
@@ -281,8 +274,66 @@ export default function MockInterview() {
             SAMPLE_ANSWERS[currentQ.id] ||
             'A senior response systematically addresses concurrency limits, query caching, connection pooling configurations, and database query indexing strategies.',
           userAnswer: candidateAnswer,
-        },
-      }));
+        };
+      }
+
+      setEvaluations((prev) => {
+        const next = { ...prev, [currentQ.id]: newEval };
+        try {
+          const evalList = Object.values(next);
+          const avgScore = Math.round(
+            evalList.reduce((acc, ev) => acc + (ev.score || 0), 0) / evalList.length
+          );
+          axios.post('/interview/save-session', {
+            resume_id: activeResume?.id || activeResume?._id || null,
+            target_role: targetRole,
+            questions: questions,
+            evaluations: next,
+            overall_score: avgScore,
+          }).catch((err) => console.warn('Silent save-session warning:', err.message));
+        } catch (e) {}
+        return next;
+      });
+    } catch (err) {
+      console.warn('Evaluation fallback:', err.message);
+      const words = candidateAnswer.split(/\s+/).length;
+      const score = words > 60 ? 9 : words > 30 ? 7 : 5;
+      const fallbackEval = {
+        score,
+        conceptCoverage: Math.min(95, score * 10 + 5),
+        communicationClarity: score >= 8 ? 'Structured & Technical' : 'Good Baseline',
+        strengths: [
+          'Directly targeted the core architectural dilemma',
+          'Demonstrated solid practical familiarity with stack mechanics',
+          'Logical structuring of reasoning steps'
+        ],
+        missedPoints: [
+          'Could include quantitative telemetry metrics (% latency drop, connection limit ceilings)',
+          'Mention edge case failover recovery in distributed context'
+        ],
+        modelAnswer:
+          SAMPLE_ANSWERS[currentQ.id] ||
+          'A senior response systematically addresses concurrency limits, query caching, connection pooling configurations, and database query indexing strategies.',
+        userAnswer: candidateAnswer,
+      };
+
+      setEvaluations((prev) => {
+        const next = { ...prev, [currentQ.id]: fallbackEval };
+        try {
+          const evalList = Object.values(next);
+          const avgScore = Math.round(
+            evalList.reduce((acc, ev) => acc + (ev.score || 0), 0) / evalList.length
+          );
+          axios.post('/interview/save-session', {
+            resume_id: activeResume?.id || activeResume?._id || null,
+            target_role: targetRole,
+            questions: questions,
+            evaluations: next,
+            overall_score: avgScore,
+          }).catch(() => {});
+        } catch (e) {}
+        return next;
+      });
     } finally {
       setEvaluating(false);
     }

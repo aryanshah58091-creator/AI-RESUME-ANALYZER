@@ -23,6 +23,8 @@ temp/
 tmp/
 *.tmp
 *.temp
+backup*.sql
+*.sql
 
 # Logs
 *.log

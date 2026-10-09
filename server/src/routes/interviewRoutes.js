@@ -61,12 +61,13 @@ router.post('/save-session', authenticate, async (req, res) => {
     const userId = req.user?.id || 1;
     const { resume_id, target_role, questions, evaluations, overall_score } = req.body;
 
+    const validResumeId = Number(resume_id) && !isNaN(Number(resume_id)) ? Number(resume_id) : null;
     const [result] = await pool.query(
       `INSERT INTO interview_sessions (user_id, resume_id, target_role, questions, evaluations, overall_score)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         userId,
-        resume_id || null,
+        validResumeId,
         target_role || 'Software Engineer',
         JSON.stringify(questions || []),
         JSON.stringify(evaluations || []),
