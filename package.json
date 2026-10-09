@@ -1,0 +1,24 @@
+{
+  "name": "ai-resume-analyzer-suite",
+  "version": "1.0.0",
+  "description": "Full-stack AI Resume Analyzer, JD Auto-Tailorer & Mock Interview Platform",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix frontend install",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix server install",
+    "start": "npm --prefix server start",
+    "dev:server": "npm --prefix server run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  },
+  "keywords": [
+    "ai",
+    "resume-analyzer",
+    "gemini",
+    "job-tailoring",
+    "interview-prep",
+    "react",
+    "nodejs",
+    "mysql"
+  ],
+  "author": "Aryan Shah",
+  "license": "MIT"
+}
