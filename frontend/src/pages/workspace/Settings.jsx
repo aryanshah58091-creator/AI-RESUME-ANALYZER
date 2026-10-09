@@ -100,14 +100,14 @@ export default function Settings() {
       setBackendHealth({
         status: 'online',
         latency: `${latency}ms`,
-        service: res.data?.service || 'CareerConnect Node Backend (Express + MySQL)',
+        service: res.data?.service || 'ResumeAI.Pro Node Backend (Express + MySQL)',
         features: res.data?.features || [],
       });
     } catch (err) {
       setBackendHealth({
         status: 'online', // Vite dev proxy fallback
         latency: '8ms',
-        service: 'CareerConnect Node Backend (Active on Port 5000)',
+        service: 'ResumeAI.Pro Node Backend (Active on Port 5000)',
         features: ['Resume ATS Parser', 'JD Tailorer', 'AI Mock Interview'],
       });
     }
@@ -155,7 +155,7 @@ export default function Settings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `careerconnect-profile-audit-${Date.now()}.json`;
+    a.download = `resumeai-profile-audit-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

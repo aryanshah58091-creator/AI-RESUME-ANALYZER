@@ -26,8 +26,15 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, user, logout } = useAuth();
+  const { login, user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // If already authenticated, go directly to workspace
+  useState(() => {
+    if (isAuthenticated) {
+      navigate('/workspace/ats-diagnostics', { replace: true });
+    }
+  });
 
   const handleFillDemo = (demoEmail, demoPass) => {
     setEmail(demoEmail);
@@ -194,7 +201,7 @@ const Login = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => handleFillDemo('candidate@careerconnect.com', 'demo123')}
+                  onClick={() => handleFillDemo('candidate@resumeai.pro', 'demo123')}
                   className="px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-600 text-xs font-medium text-left transition-colors flex items-center justify-between group"
                 >
                   <span className="truncate">Candidate (Fresher)</span>
@@ -202,7 +209,7 @@ const Login = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleFillDemo('admin@careerconnect.com', 'admin123')}
+                  onClick={() => handleFillDemo('admin@resumeai.pro', 'admin123')}
                   className="px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-600 text-xs font-medium text-left transition-colors flex items-center justify-between group"
                 >
                   <span className="truncate">Admin / SDE-1</span>
@@ -225,7 +232,7 @@ const Login = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="candidate@careerconnect.com"
+                    placeholder="candidate@resumeai.pro"
                     required
                     className="w-full bg-dark-900 border border-dark-600 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-green transition-colors"
                   />

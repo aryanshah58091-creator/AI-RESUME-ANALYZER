@@ -40,7 +40,7 @@ app.use(express.static(frontendDistPath));
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'CareerConnect AI Node Backend',
+    service: 'ResumeAI.Pro AI Node Backend',
     timestamp: new Date().toISOString(),
     features: ['Resume ATS Parser', 'JD Tailorer', 'AI Mock Interview', 'ATS Diagnostics'],
   });

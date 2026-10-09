@@ -22,8 +22,12 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  if (isAuthenticated) {
+    navigate('/workspace/ats-diagnostics', { replace: true });
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();

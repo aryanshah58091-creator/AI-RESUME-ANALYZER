@@ -4,7 +4,8 @@
 [![Node.js](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Database](https://img.shields.io/badge/Database-MySQL%20%2F%20MariaDB-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![TailwindCSS](https://img.shields.io/badge/Styling-Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![AI Model](https://img.shields.io/badge/AI-Google%20Gemini%201.5%20Flash-4285F4?logo=google&logoColor=white)](https://aistudio.google.com/)
+[![AI Model](https://img.shields.io/badge/AI-Google%20Gemini%203.8%20Flash-4285F4?logo=google&logoColor=white)](https://aistudio.google.com/)
+[![Render](https://img.shields.io/badge/Deploy-Render%20%2B%20TiDB%20Cloud-46E3B7?logo=render&logoColor=white)](https://render.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 An enterprise-grade, full-stack AI career platform designed to audit resumes against modern **Applicant Tracking Systems (ATS)**, run real-time semantic gap analyses against target Job Descriptions, rewrite experience bullets using **Google's X-Y-Z formula**, and conduct technical mock interviews.
